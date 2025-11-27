@@ -1,0 +1,5 @@
+# Name,   Type, SubType, Offset,  Size, Flags
+# We are the "factory" app (your bootloader logic)
+factory,  app,  factory, 0x10000, 64K,
+# This is where the signed User App lives
+user_app, 0x40, 0x00,    0x20000, 1M,
