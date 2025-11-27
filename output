@@ -1,0 +1,98 @@
+ESP-ROM:esp32c3-api1-20210207
+Build:Feb  7 2021
+rst:0xc (RTC_SW_CPU_RST),boot:0xc (SPI_FAST_FLASH_BOOT)
+Saved PC:0x403807ca
+--- 0x403807ca: esp_restart_noos at /Users/jacenli/esp/esp-idf/components/esp_system/port/soc/esp32c3/system_internal.c:110
+SPIWP:0xee
+mode:DIO, clock div:1
+load:0x3fcd5820,len:0x1738
+load:0x403cc710,len:0xb9c
+load:0x403ce710,len:0x2e4c
+entry 0x403cc71a
+I (35) boot: ESP-IDF v5.3 2nd stage bootloader
+I (35) boot: compile time Nov 26 2025 20:39:19
+I (35) boot: chip revision: v0.4
+I (38) boot.esp32c3: SPI Speed      : 80MHz
+I (43) boot.esp32c3: SPI Mode       : DIO
+I (47) boot.esp32c3: SPI Flash Size : 4MB
+I (52) boot: Enabling RNG early entropy source...
+I (58) boot: Partition Table:
+I (61) boot: ## Label            Usage          Type ST Offset   Length
+I (68) boot:  0 nvs              WiFi data        01 02 00009000 00006000
+I (76) boot:  1 phy_init         RF data          01 01 0000f000 00001000
+I (83) boot:  2 factory          factory app      00 00 00010000 00080000
+I (91) boot:  3 user_app         unknown          40 00 00090000 00100000
+I (98) boot: End of partition table
+I (102) esp_image: segment 0: paddr=00010020 vaddr=3c030020 size=13144h ( 78148) map
+I (123) esp_image: segment 1: paddr=0002316c vaddr=3fc8ba00 size=013bch (  5052) load
+I (124) esp_image: segment 2: paddr=00024530 vaddr=40380000 size=0b8e8h ( 47336) load
+I (138) esp_image: segment 3: paddr=0002fe20 vaddr=00000000 size=001f8h (   504) 
+I (138) esp_image: segment 4: paddr=00030020 vaddr=42000020 size=292f0h (168688) map
+I (175) boot: Loaded app from partition at offset 0x10000
+I (176) boot: Disabling RNG early entropy source...
+I (187) cpu_start: Unicore app
+I (196) cpu_start: Pro cpu start user code
+I (196) cpu_start: cpu freq: 160000000 Hz
+I (196) app_init: Application information:
+I (199) app_init: Project name:     custom_bootloader
+I (204) app_init: App version:      707e82e-dirty
+I (210) app_init: Compile time:     Nov 26 2025 20:39:13
+I (216) app_init: ELF file SHA256:  b1861a3e4...
+I (221) app_init: ESP-IDF:          v5.3
+I (226) efuse_init: Min chip rev:     v0.3
+I (230) efuse_init: Max chip rev:     v1.99 
+I (235) efuse_init: Chip rev:         v0.4
+I (240) heap_init: Initializing. RAM available for dynamic allocation:
+I (247) heap_init: At 3FC8DD70 len 00032290 (200 KiB): RAM
+I (254) heap_init: At 3FCC0000 len 0001C710 (113 KiB): Retention RAM
+I (261) heap_init: At 3FCDC710 len 00002950 (10 KiB): Retention RAM
+I (267) heap_init: At 50000200 len 00001DE8 (7 KiB): RTCRAM
+I (275) spi_flash: detected chip: generic
+I (278) spi_flash: flash io: dio
+I (282) sleep: Configure to isolate all GPIO pins in sleep state
+I (289) sleep: Enable automatic switching of GPIO sleep configuration
+I (296) main_task: Started on CPU0
+I (316) main_task: Calling app_main()
+I (316) SBC: Secure Bootloader Started
+I (316) SBC: Header found. Version: 1, Size: 174832
+I (346) SBC: Hash Verified.
+I (526) SBC: Signature Verified. Booting...
+I (526) esp_image: segment 0: paddr=000a0020 vaddr=3c020020 size=08b6ch ( 35692) map
+I (536) esp_image: segment 1: paddr=000a8b94 vaddr=3fc8b400 size=01354h (  4948) 
+I (536) esp_image: segment 2: paddr=000a9ef0 vaddr=40380000 size=06128h ( 24872) 
+I (546) esp_image: segment 3: paddr=000b0020 vaddr=42000020 size=1583ch ( 88124) map
+I (566) esp_image: segment 4: paddr=000c5864 vaddr=40386128 size=05264h ( 21092) 
+I (566) SBC: Jumping to entry point: 0x403802dc
+--- 0x403802dc: call_start_cpu0 at /Users/jacenli/esp/esp-idf/components/esp_system/port/cpu_start.c:376
+I (574) cpu_start: Unicore appGuru Meditation Error: Core  0 panic'ed (Interrupt wdt timeout on CPU0). 
+
+--- Stack dump detected
+Core  0 register dump:
+MEPC    : 0x4004c0d6  RA      : 0x400481f2  SP      : 0x3fc8f690  GP      : 0x3fc8c200  
+--- 0x4004c0d6: uart_tx_one_char_uart.part.0 in ROM
+--- 0x400481f2: ets_write_char_uart in ROM
+TP      : 0x3fc8fa70  T0      : 0x00000000  T1      : 0x00000000  T2      : 0x00000009  
+S0/FP   : 0x0000000a  S1      : 0x00000029  A0      : 0x00000000  A1      : 0x0000000d  
+A2      : 0x0000002e  A3      : 0x6000001c  A4      : 0x60808000  A5      : 0x60000000  
+A6      : 0xa0000000  A7      : 0x0000000a  S2      : 0xffffffff  S3      : 0x3c0303d9  
+S4      : 0x3fc8f75c  S5      : 0x0000023e  S6      : 0x400481b0  S7      : 0x3c030497  
+--- 0x400481b0: ets_write_char in ROM
+S8      : 0x00000000  S9      : 0x3fc8f6c0  S10     : 0xfffffff6  S11     : 0x3c0303d9  
+T3      : 0x00000000  T4      : 0x00050000  T5      : 0x00800000  T6      : 0x00800000  
+MSTATUS : 0x00001881  MTVEC   : 0x40380001  MCAUSE  : 0x00000018  MTVAL   : 0x00008341  
+--- 0x40380001: _vector_table at /Users/jacenli/esp/esp-idf/components/riscv/vectors_intc.S:54
+MHARTID : 0x00000000  
+
+
+--- Backtrace:
+
+
+0x4004c0d6 in ?? ()
+#0  0x4004c0d6 in ?? ()
+Backtrace stopped: previous frame identical to this frame (corrupt stack?)
+
+
+
+ELF file SHA256: 
+
+Rebooting...

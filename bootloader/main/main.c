@@ -1,3 +1,4 @@
+#define MBEDTLS_ALLOW_PRIVATE_ACCESS
 #include "esp_image_format.h"
 #include "esp_log.h"
 #include "esp_partition.h"
@@ -8,10 +9,17 @@
 #include "mbedtls/pk.h"
 #include "mbedtls/sha256.h"
 #include "sbc_header.h"
+#include <inttypes.h>
 #include <stdio.h>
 #include <string.h>
 
 static const char *TAG = "SBC";
+
+#define MBEDTLS_MPI_CHK(f)                                                     \
+  do {                                                                         \
+    if ((ret = (f)) != 0)                                                      \
+      goto cleanup;                                                            \
+  } while (0)
 
 const char *public_key_pem =
 #include "public_key_include.h"
@@ -26,7 +34,7 @@ bool calc_app_hash(const esp_partition_t *partition, uint32_t data_len,
 
   uint8_t buf[1024];
   uint32_t left = data_len;
-  uint32_t offset = sizeof(sbc_header_t); // Skip the header itself!
+  uint32_t offset = 0x10000; // Skip the 64KB header + padding
 
   while (left > 0) {
     uint32_t to_read = (left > sizeof(buf)) ? sizeof(buf) : left;
@@ -47,6 +55,7 @@ bool calc_app_hash(const esp_partition_t *partition, uint32_t data_len,
 }
 
 bool verify_application(void) {
+  int ret = 0;
   // 1. Find the User App Partition
   const esp_partition_t *part =
       esp_partition_find_first(0x40, 0x00, "user_app");
@@ -64,11 +73,11 @@ bool verify_application(void) {
 
   // 3. Verify Magic & Version
   if (hdr.magic != SBC_HEADER_MAGIC) {
-    ESP_LOGE(TAG, "Invalid Magic: %08lx", hdr.magic);
+    ESP_LOGE(TAG, "Invalid Magic: %08" PRIx32, hdr.magic);
     return false;
   }
-  ESP_LOGI(TAG, "Header found. Version: %lu, Size: %lu", hdr.img_version,
-           hdr.img_size);
+  ESP_LOGI(TAG, "Header found. Version: %" PRIu32 ", Size: %" PRIu32,
+           hdr.img_version, hdr.img_size);
 
   // 4. Calculate Hash of the binary
   uint8_t current_hash[32];
@@ -108,8 +117,24 @@ bool verify_application(void) {
   mbedtls_sha256_finish(&sha_ctx, struct_digest);
   mbedtls_sha256_free(&sha_ctx);
 
-  int ret =
-      mbedtls_pk_verify(&pk, MBEDTLS_MD_SHA256, struct_digest, 0, hdr.sig, 64);
+  // Verify using low-level ECDSA to handle raw (r, s) signature
+  mbedtls_mpi r, s;
+  mbedtls_mpi_init(&r);
+  mbedtls_mpi_init(&s);
+
+  // Parse r and s from the 64-byte signature
+  MBEDTLS_MPI_CHK(mbedtls_mpi_read_binary(&r, hdr.sig, 32));
+  MBEDTLS_MPI_CHK(mbedtls_mpi_read_binary(&s, hdr.sig + 32, 32));
+
+  // Get the ECDSA context (ECP keypair)
+  mbedtls_ecp_keypair *ctx = mbedtls_pk_ec(pk);
+
+  // Verify
+  ret = mbedtls_ecdsa_verify(&ctx->grp, struct_digest, 32, &ctx->Q, &r, &s);
+
+cleanup:
+  mbedtls_mpi_free(&r);
+  mbedtls_mpi_free(&s);
   mbedtls_pk_free(&pk);
 
   if (ret != 0) {
@@ -122,45 +147,37 @@ bool verify_application(void) {
   // 6. The Jump
   esp_image_metadata_t data;
   const esp_partition_pos_t part_pos = {
-      .offset = part->address + sizeof(sbc_header_t), // Skip our header!
-      .size = part->size - sizeof(sbc_header_t),
+      .offset = part->address + 0x10000, // Skip 64KB header/padding
+      .size = part->size - 0x10000,
   };
 
-  if (esp_image_load(ESP_IMAGE_LOAD, &part_pos, &data) != ESP_OK) {
-    ESP_LOGE(TAG, "Failed to load image");
+  // Use ESP_IMAGE_VERIFY because ESP_IMAGE_LOAD is not available in app build.
+  // This verifies the image structure but does NOT load it into RAM.
+  if (esp_image_verify(ESP_IMAGE_VERIFY, &part_pos, &data) != ESP_OK) {
+    ESP_LOGE(TAG, "Failed to verify image structure");
     return false;
   }
 
   typedef void (*entry_point_t)(void);
   entry_point_t entry_point = (entry_point_t)data.image.entry_addr;
-  ESP_LOGI(TAG, "Jumping to entry point: 0x%08x", (uint32_t)entry_point);
+  ESP_LOGI(TAG, "Jumping to entry point: 0x%08" PRIx32, (uint32_t)entry_point);
+
+  // Note: Since we are an App, we cannot easily load the new app's segments
+  // into IRAM/DRAM without potentially overwriting ourselves or messing up the
+  // MMU. A real secure bootloader should be implemented as a 2nd stage
+  // bootloader replacement. However, for this scaffold, we will attempt the
+  // jump. If it fails, it confirms that we need to be a real bootloader or use
+  // OTA mechanism.
   entry_point();
 
-  return true; // This line will not be reached if jump is successful
+  return true;
 }
 
 void app_main(void) {
   ESP_LOGI(TAG, "Secure Bootloader Started");
 
   if (verify_application()) {
-    ESP_LOGI(TAG, "Application verified successfully. (Jump handled by "
-                  "esp_image_load if successful, wait... actually "
-                  "esp_image_load doesn't jump, it loads. We need to jump.)");
-    // Wait, esp_image_load loads it. But we need to jump to it.
-    // Actually, esp_image_load just verifies and loads headers? No, it loads
-    // segments. But it doesn't jump. We need to use a different function to
-    // jump or just use esp_restart() if we were replacing the bootloader. But
-    // we are an APP. To jump to another app from an app, we usually use
-    // esp_ota_set_boot_partition and restart? But we want to jump to a raw
-    // address or use the 2nd stage bootloader features? The user instructions
-    // said: "This loads the app into RAM and jumps". Let's check esp_image_load
-    // documentation or source. Actually, looking at IDF, esp_image_load just
-    // loads. We might need to call the entry point manually.
-    // data.image.entry_addr
-
-    // The jump is now handled inside verify_application if successful.
-    // If verify_application returns true, it means the jump was attempted.
-    // If it returns false, it means verification failed.
+    ESP_LOGI(TAG, "Application verified successfully.");
   } else {
     ESP_LOGE(TAG, "Verification Failed! Halting.");
   }

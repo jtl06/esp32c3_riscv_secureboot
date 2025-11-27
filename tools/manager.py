@@ -53,7 +53,7 @@ def sign_binary(args):
     
     # Sign the hash deterministically (RFC6979)
     # sigencode_string returns r + s as raw bytes (64 bytes for P-256)
-    sig = sk.sign(to_sign, sigencode=sigencode_string)
+    sig = sk.sign(to_sign, sigencode=sigencode_string, hashfunc=hashlib.sha256)
     if len(sig) != 64:
         print(f"Warning: Signature length is {len(sig)}, expected 64.")
 
@@ -66,10 +66,16 @@ def sign_binary(args):
                          img_hash,
                          sig)
     
+    # Pad to 64KB (0x10000) to ensure the app binary starts at a 64KB aligned address
+    # This is required for ESP32-C3 MMU mapping of IROM/DROM segments.
+    padding_len = 0x10000 - HEADER_SIZE
+    padding = b'\xFF' * padding_len
+
     output_filename = args.output if args.output else args.input + ".signed"
     
     with open(output_filename, "wb") as f:
         f.write(header)
+        f.write(padding)
         f.write(data)
         
     print(f"Signed binary saved to {output_filename}")
